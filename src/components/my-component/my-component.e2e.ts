@@ -1,32 +1,41 @@
-import { newE2EPage } from '@stencil/core/testing';
+import { E2EElement, newE2EPage } from '@stencil/core/testing';
+import { ElementHandle } from 'puppeteer';
 
 describe('my-component', () => {
-  it('renders', async () => {
-    const page = await newE2EPage();
+  const testHTML = `<my-component style="--my-component-text-color: rgb(255, 0, 0);"></my-component>`
 
-    await page.setContent('<my-component></my-component>');
-    const element = await page.find('my-component');
-    expect(element).toHaveClass('hydrated');
+
+  it('using E2E APIs', async () => {
+    const page = await newE2EPage();
+    await page.setContent(testHTML);
+
+    const el = await page.find('my-component');
+    expect((await el.getComputedStyle()).getPropertyValue('--my-component-text-color')).toEqual('rgb(255, 0, 0)');
+
+    const shadowEl = await page.find('my-component');
+    expect((await shadowEl.getComputedStyle()).getPropertyValue('--my-component-text-color')).toEqual('rgb(255, 0, 0)');
   });
 
-  it('renders changes to the name data', async () => {
+  it('using workaround function', async () => {
+    async function getComputedStylePropertyValue(element: E2EElement, property: string): Promise<string> {
+      type E2EElementInternal = E2EElement & {
+        _elmHandle: ElementHandle;
+      };
+
+      return await (element as E2EElementInternal)._elmHandle.evaluate(
+        (el, targetProp): string => window.getComputedStyle(el).getPropertyValue(targetProp),
+        property,
+      );
+    }
+
+
     const page = await newE2EPage();
+    await page.setContent(testHTML);
 
-    await page.setContent('<my-component></my-component>');
-    const component = await page.find('my-component');
-    const element = await page.find('my-component >>> div');
-    expect(element.textContent).toEqual(`Hello, World! I'm `);
+    const el = await page.find('my-component');
+    expect(await getComputedStylePropertyValue(el, '--my-component-text-color')).toEqual('rgb(255, 0, 0)');
 
-    component.setProperty('first', 'James');
-    await page.waitForChanges();
-    expect(element.textContent).toEqual(`Hello, World! I'm James`);
-
-    component.setProperty('last', 'Quincy');
-    await page.waitForChanges();
-    expect(element.textContent).toEqual(`Hello, World! I'm James Quincy`);
-
-    component.setProperty('middle', 'Earl');
-    await page.waitForChanges();
-    expect(element.textContent).toEqual(`Hello, World! I'm James Earl Quincy`);
+    const shadowEl = await page.find('my-component');
+    expect(await getComputedStylePropertyValue(shadowEl, '--my-component-text-color')).toEqual('rgb(255, 0, 0)');
   });
 });

@@ -1,3 +1,7 @@
 :host {
   display: block;
 }
+
+.root {
+  --internal-my-component-text-color: var(--my-component-text-color, black);
+}
